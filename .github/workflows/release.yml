@@ -22,10 +22,20 @@ jobs:
           json="$(go tool dist list | awk -F/ '
             BEGIN { printf("[") }
             $1 != "android" && $1 != "ios" && $1 != "js" && $1 != "wasip1" {
-              if (count++) {
-                printf(",")
+              # 添加 linux/arm/5 (ARMv5) 支持
+              if ($1 == "linux" && $2 == "arm" && $3 == "5") {
+                if (count++) {
+                  printf(",")
+                }
+                printf("{\"goos\":\"%s\",\"goarch\":\"%s\",\"goarm\":\"%s\"}", $1, $2, $3)
               }
-              printf("{\"goos\":\"%s\",\"goarch\":\"%s\"}", $1, $2)
+              # 其他架构保持原样
+              else if ($1 != "linux" || $3 == "") {
+                if (count++) {
+                  printf(",")
+                }
+                printf("{\"goos\":\"%s\",\"goarch\":\"%s\"}", $1, $2)
+              }
             }
             END { printf("]") }
           ')"
@@ -48,6 +58,7 @@ jobs:
           CGO_ENABLED: "0"
           GOOS: ${{ matrix.target.goos }}
           GOARCH: ${{ matrix.target.goarch }}
+          GOARM: ${{ matrix.target.goarm || '7' }}
         shell: bash
         run: |
           ext=""
@@ -55,12 +66,18 @@ jobs:
             ext=".exe"
           fi
 
+          # 添加 GOARM 环境变量到文件名
+          arm_suffix=""
+          if [ -n "${GOARM}" ]; then
+            arm_suffix="-v${GOARM}"
+          fi
+
           mkdir -p dist
-          asset="socks5d-${GOOS}-${GOARCH}${ext}"
+          asset="socks5d-${GOOS}-${GOARCH}${arm_suffix}${ext}"
           go build -trimpath -ldflags="-s -w" -o "dist/${asset}" .
       - uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.target.goos }}-${{ matrix.target.goarch }}
+          name: ${{ matrix.target.goos }}-${{ matrix.target.goarch }}-${{ matrix.target.goarm || 'v7' }}
           path: dist/socks5d-*
 
   release:
