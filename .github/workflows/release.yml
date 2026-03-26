@@ -22,23 +22,18 @@ jobs:
           json="$(go tool dist list | awk -F/ '
             BEGIN { printf("[") }
             $1 != "android" && $1 != "ios" && $1 != "js" && $1 != "wasip1" {
-              # 添加 linux/arm/5 (ARMv5) 支持
-              if ($1 == "linux" && $2 == "arm" && $3 == "5") {
-                if (count++) {
-                  printf(",")
-                }
-                printf("{\"goos\":\"%s\",\"goarch\":\"%s\",\"goarm\":\"%s\"}", $1, $2, $3)
+              if (count++) {
+                printf(",")
               }
-              # 其他架构保持原样
-              else if ($1 != "linux" || $3 == "") {
-                if (count++) {
-                  printf(",")
-                }
-                printf("{\"goos\":\"%s\",\"goarch\":\"%s\"}", $1, $2)
-              }
+              printf("{\"goos\":\"%s\",\"goarch\":\"%s\"}", $1, $2)
             }
             END { printf("]") }
           ')"
+
+          # 为 linux/arm 额外添加 ARMv5 条目
+          json="${json%]}"
+          json="${json},{\"goos\":\"linux\",\"goarch\":\"armv5\"}]"
+
           echo "json=${json}" >> "${GITHUB_OUTPUT}"
 
   build:
@@ -58,7 +53,6 @@ jobs:
           CGO_ENABLED: "0"
           GOOS: ${{ matrix.target.goos }}
           GOARCH: ${{ matrix.target.goarch }}
-          GOARM: ${{ matrix.target.goarm || '7' }}
         shell: bash
         run: |
           ext=""
@@ -66,18 +60,18 @@ jobs:
             ext=".exe"
           fi
 
-          # 添加 GOARM 环境变量到文件名
-          arm_suffix=""
-          if [ -n "${GOARM}" ]; then
-            arm_suffix="-v${GOARM}"
+          # 处理 armv5 -> GOARCH=arm + GOARM=5
+          if [ "${GOARCH}" = "armv5" ]; then
+            export GOARCH="arm"
+            export GOARM="5"
           fi
 
           mkdir -p dist
-          asset="socks5d-${GOOS}-${GOARCH}${arm_suffix}${ext}"
+          asset="socks5d-${GOOS}-${{ matrix.target.goarch }}${ext}"
           go build -trimpath -ldflags="-s -w" -o "dist/${asset}" .
       - uses: actions/upload-artifact@v4
         with:
-          name: ${{ matrix.target.goos }}-${{ matrix.target.goarch }}-${{ matrix.target.goarm || 'v7' }}
+          name: ${{ matrix.target.goos }}-${{ matrix.target.goarch }}
           path: dist/socks5d-*
 
   release:
