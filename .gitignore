@@ -1,0 +1,7 @@
+.gocache/
+.artifacts/
+dist/
+
+oryxBuildBinary
+socks5d
+socks5d.exe
