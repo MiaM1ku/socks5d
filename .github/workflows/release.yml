@@ -51,33 +51,17 @@ jobs:
         shell: bash
         run: |
           ext=""
-          archive="tar.gz"
           if [ "${GOOS}" = "windows" ]; then
             ext=".exe"
-            archive="zip"
           fi
 
-          asset="socks5d-${GOOS}-${GOARCH}"
-          outdir="dist/${asset}"
-          mkdir -p "${outdir}"
-
-          go build -trimpath -ldflags="-s -w" -o "${outdir}/socks5d${ext}" .
-          cp README.md "${outdir}/"
-
-          if [ "${archive}" = "zip" ]; then
-            (
-              cd dist
-              zip -rq "${asset}.zip" "${asset}"
-            )
-          else
-            tar -C dist -czf "dist/${asset}.tar.gz" "${asset}"
-          fi
+          mkdir -p dist
+          asset="socks5d-${GOOS}-${GOARCH}${ext}"
+          go build -trimpath -ldflags="-s -w" -o "dist/${asset}" .
       - uses: actions/upload-artifact@v4
         with:
           name: ${{ matrix.target.goos }}-${{ matrix.target.goarch }}
-          path: |
-            dist/*.tar.gz
-            dist/*.zip
+          path: dist/socks5d-*
 
   release:
     if: startsWith(github.ref, 'refs/tags/')
