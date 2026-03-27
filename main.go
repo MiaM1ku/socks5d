@@ -8,9 +8,16 @@ import (
 func main() {
 	listenAddr, username, password := parseArgs(os.Args)
 
-	fmt.Printf("listening socks5://%s\n", listenAddr)
-	if err := NewServer(listenAddr, username, password).ListenAndServe(); err != nil {
-		fmt.Println("[error]", err)
+	fmt.Printf("Listening SOCKS5 on %s\n", listenAddr)
+	if username != "" {
+		fmt.Printf("Authentication enabled for user: %s\n", username)
+	} else {
+		fmt.Println("No authentication required")
+	}
+
+	server := NewServer(listenAddr, username, password)
+	if err := server.ListenAndServe(); err != nil {
+		fmt.Fprintf(os.Stderr, "[ERROR] Server failed: %v\n", err)
 		os.Exit(1)
 	}
 }
@@ -32,7 +39,8 @@ func parseArgs(args []string) (string, string, string) {
 		username = args[2]
 		password = args[3]
 	default:
-		fmt.Println("socks5d [listenAddr] [username] [password]")
+		fmt.Printf("Usage: %s [listenAddr] [username] [password]\n", args[0])
+		fmt.Printf("Example: %s :1080 admin 123456\n", args[0])
 		os.Exit(0)
 	}
 
